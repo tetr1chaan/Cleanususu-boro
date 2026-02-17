@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Burabay</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        #map { 
+            height: 60vh; 
+            width: 100%; 
+            z-index: 1;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            position: relative;
+            top: -20px;
+            z-index: 2;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+        }
+        h3 { margin-top: 0; color: #333; }
+        input { 
+            width: 100%; 
+            padding: 12px 0;
+            margin-bottom: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 10px; 
+            text-indent: 10px;
+            font-size: 16px;
+            box-sizing: border-box; /* Чтобы padding не ломал ширину */
+        }
+        /* Скрываем стандартный инпут файла и делаем красивую кнопку */
+        .file-upload {
+            display: block;
+            padding: 12px;
+            text-align: center;
+            background: #f0f0f0;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            color: #555;
+            cursor: pointer;
+            border: 1px dashed #ccc;
+        }
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            background-color: #2ea6ff; /* Цвет Телеграма */
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.2s;
+        }
+        button:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div class="container">
+        <h3>📍 Сообщить о мусоре</h3>
+        <input type="text" id="desc" placeholder="Описание (пластик, бутылки...)">
+        
+        <label for="photo" class="file-upload">
+            📷 Нажмите, чтобы добавить фото
+        </label>
+        <input type="file" id="photo" accept="image/*" style="display: none;">
+
+        <button onclick="sendReport()">ОТПРАВИТЬ ЗАЯВКУ</button>
+    </div>
+
+    <script>
+        // Инициализация Telegram
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        // Карта
+        var map = L.map('map').setView([53.085, 70.28], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        var marker;
+        var selectedLat, selectedLng;
+
+        map.on('click', function(e) {
+            if (marker) map.removeLayer(marker);
+            marker = L.marker(e.latlng).addTo(map);
+            selectedLat = e.latlng.lat;
+            selectedLng = e.latlng.lng;
+        });
+
+        // Смена текста когда выбрали файл
+        document.getElementById('photo').onchange = function() {
+            document.querySelector('.file-upload').innerText = "✅ Фото выбрано!";
+            document.querySelector('.file-upload').style.background = "#e6fffa";
+            document.querySelector('.file-upload').style.borderColor = "#28a745";
+        };
+
+        async function sendReport() {
+            if (!selectedLat) {
+                tg.showAlert("Пожалуйста, поставьте точку на карте!");
+                return;
+            }
+            
+            let photoFile = document.getElementById("photo").files[0];
+            if (!photoFile) {
+                tg.showAlert("Пожалуйста, прикрепите фото!");
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("lat", selectedLat);
+            formData.append("lon", selectedLng);
+            formData.append("desc", document.getElementById("desc").value);
+            formData.append("photo", photoFile);
+
+            // Кнопка меняет цвет на время загрузки
+            let btn = document.querySelector('button');
+            btn.innerText = "⏳ Отправка...";
+            btn.style.background = "#ccc";
+
+            try {
+                let response = await fetch("/submit", { method: "POST", body: formData });
+                let result = await response.json();
+                tg.showAlert(result.message); // Красивое уведомление Телеграм
+                window.location.reload(); // Перезагружаем страницу
+            } catch (e) {
+                alert("Ошибка: " + e);
+                btn.innerText = "ОТПРАВИТЬ ЗАЯВКУ";
+                btn.style.background = "#2ea6ff";
+            }
+        }
+    </script>
+</body>
+</html>
