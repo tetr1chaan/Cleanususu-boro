@@ -52,5 +52,10 @@ def get_reports():
     # Превращаем в JSON
     return [{"lat": r[0], "lon": r[1], "desc": r[2], "photo": r[3], "status": r[4]} for r in data]
 
+@app.get("/admin")
+def admin_page(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

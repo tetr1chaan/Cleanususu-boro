@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель Акимата - CleanBurabay</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body { margin: 0; display: flex; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100vh; }
+        #sidebar { width: 350px; background: #1e293b; color: white; padding: 20px; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.2); z-index: 2; }
+        #map { flex-grow: 1; z-index: 1; }
+        .report-card { background: #334155; border-radius: 10px; padding: 15px; margin-bottom: 15px; cursor: pointer; transition: 0.2s; border-left: 5px solid #ef4444; }
+        .report-card:hover { transform: translateX(5px); background: #475569; }
+        .report-card img { width: 100%; border-radius: 5px; margin-top: 10px; }
+        h2 { border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-top: 0; }
+        .badge { background: #ef4444; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2>🌲 Акимат Бурабай</h2>
+    <p>Новых заявок: <span id="count" style="font-weight: bold; font-size: 18px; color: #fbbf24;">0</span></p>
+    <div id="reports-list">
+        </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+    // Центр карты - Бурабай
+    var map = L.map('map').setView([53.085, 70.28], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    async function loadReports() {
+        try {
+            const response = await fetch('/api/reports');
+            const reports = await response.json();
+            
+            document.getElementById('count').innerText = reports.length;
+            const list = document.getElementById('reports-list');
+
+            reports.forEach(report => {
+                // Добавляем маркер на карту
+                const marker = L.marker([report.lat, report.lon]).addTo(map);
+                
+                // Что внутри маркера
+                const popupContent = `
+                    <div style="width: 200px; text-align: center;">
+                        <p style="margin: 0 0 10px 0; font-weight: bold;">${report.desc}</p>
+                        <img src="/${report.photo}" style="width: 100%; border-radius: 8px;">
+                    </div>
+                `;
+                marker.bindPopup(popupContent);
+
+                // Создаем карточку в боковом меню
+                const card = document.createElement('div');
+                card.className = 'report-card';
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span class="badge">Новое</span>
+                        <small style="color: #94a3b8;">[${report.lat.toFixed(4)}, ${report.lon.toFixed(4)}]</small>
+                    </div>
+                    <div style="font-size: 15px; margin-top: 10px;">${report.desc}</div>
+                    <img src="/${report.photo}">
+                `;
+                
+                // Летим к точке при клике
+                card.onclick = () => {
+                    map.setView([report.lat, report.lon], 16);
+                    marker.openPopup();
+                };
+                
+                list.appendChild(card);
+            });
+        } catch (error) {
+            console.error("Ошибка загрузки данных:", error);
+        }
+    }
+
+    // Запускаем функцию при открытии страницы
+    loadReports();
+</script>
+</body>
+</html>
