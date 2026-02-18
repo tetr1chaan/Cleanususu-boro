@@ -47,11 +47,16 @@ async def submit_report(lat: float = Form(...), lon: float = Form(...), desc: st
 # Админка (Отдаем список мусора)
 @app.get("/api/reports")
 def get_reports():
-    cursor.execute("SELECT lat, lon, description, photo_path, status FROM reports")
+    cursor.execute("SELECT id, lat, lon, description, photo_path, status FROM reports")
     data = cursor.fetchall()
     # Превращаем в JSON
-    return [{"lat": r[0], "lon": r[1], "desc": r[2], "photo": r[3], "status": r[4]} for r in data]
+    return [{"id": r[0], "lat": r[1], "lon": r[2], "desc": r[3], "photo": r[4], "status": r[5]} for r in data]
 
+@app.post("/api/reports/{report_id}/clean")
+def mark_as_cleaned(report_id: int):
+    cursor.execute("UPDATE reports SET status = 'cleaned' WHERE id = ?", (report_id,))
+    conn.commit()
+    return{"message": "Успешно убрано!"}
 @app.get("/admin")
 def admin_page(request: Request):
     return templates.TemplateResponse("admin.html", {"request": request})

@@ -55,15 +55,26 @@
                 marker.bindPopup(popupContent);
 
                 // Создаем карточку в боковом меню
+                const isCleaned = report.status === 'cleaned';
+                const badgeColor = isCleaned ? '#10b981' : '#ef4444';
+                const badgeText = isCleaned ? 'Убрано' : 'Новое';
+
                 const card = document.createElement('div');
                 card.className = 'report-card';
                 card.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                        <span class="badge">Новое</span>
+                        <span class="badge" style="background: ${badgeColor};">${badgeText}</span>
                         <small style="color: #94a3b8;">[${report.lat.toFixed(4)}, ${report.lon.toFixed(4)}]</small>
                     </div>
                     <div style="font-size: 15px; margin-top: 10px;">${report.desc}</div>
                     <img src="/${report.photo}">
+                    
+                    ${!isCleaned ? `
+                    <button onclick="cleanTrash(${report.id}, event)" 
+                            style="width: 100%; margin-top: 10px; padding: 8px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        ✅ Отметить как убранное
+                    </button>
+                    ` : ''}
                 `;
                 
                 // Летим к точке при клике
@@ -79,6 +90,15 @@
         }
     }
 
+    async function cleanTrash(id, event) {
+        event.stopPropagation(); // Чтобы при клике на кнопку не открывалась карта
+        
+        if(confirm("Точно убрали этот мусор?")) {
+            await fetch(`/api/reports/${id}/clean`, { method: 'POST' });
+            // Перезагружаем страницу, чтобы обновить данные
+            location.reload(); 
+        }
+    }
     // Запускаем функцию при открытии страницы
     loadReports();
 </script>
