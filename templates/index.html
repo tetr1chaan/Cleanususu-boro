@@ -1,69 +1,115 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Clean Burabay</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
     <style>
+        :root {
+            --tg-bg: var(--tg-theme-bg-color, #ffffff);
+            --tg-secondary-bg: var(--tg-theme-secondary-bg-color, #f5f5f5);
+            --tg-text: var(--tg-theme-text-color, #222222);
+            --tg-hint: var(--tg-theme-hint-color, #999999);
+            --tg-link: var(--tg-theme-link-color, #2ea6ff);
+            --tg-button: var(--tg-theme-button-color, #2ea6ff);
+            --tg-button-text: var(--tg-theme-button-text-color, #ffffff);
+        }
+
         body { 
             margin: 0; 
             padding: 0; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f5f5f5;
+            font-family: -apple-system, system-ui, sans-serif;
+            background-color: var(--tg-secondary-bg);
+            color: var(--tg-text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
+
         #map { 
-            height: 60vh; 
+            flex: 1; /* Карта занимает всё свободное место сверху */
             width: 100%; 
             z-index: 1;
         }
+
         .container {
-            background: white;
+            background: var(--tg-bg);
             padding: 20px;
-            border-top-left-radius: 20px;
-            border-top-right-radius: 20px;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
             position: relative;
             top: -20px;
             z-index: 2;
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 -10px 20px rgba(0,0,0,0.05);
+            /* Управляем размером: подстраивается под контент */
+            max-height: 80vh; 
+            overflow-y: auto; 
         }
-        h3 { margin-top: 0; color: #333; }
-        input { 
+
+        h3 { margin: 0 0 15px 0; font-size: 18px; font-weight: 700; }
+
+        /* Текстовое поле, которое можно растягивать */
+        textarea { 
             width: 100%; 
-            padding: 12px 0;
-            margin-bottom: 15px; 
-            border: 1px solid #ddd; 
-            border-radius: 10px; 
-            text-indent: 10px;
-            font-size: 16px;
-            box-sizing: border-box; /* Чтобы padding не ломал ширину */
-        }
-        /* Скрываем стандартный инпут файла и делаем красивую кнопку */
-        .file-upload {
-            display: block;
             padding: 12px;
-            text-align: center;
-            background: #f0f0f0;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            color: #555;
+            margin-bottom: 12px; 
+            border: 1px solid rgba(0,0,0,0.1); 
+            border-radius: 12px; 
+            font-size: 16px;
+            box-sizing: border-box;
+            background: var(--tg-bg);
+            color: var(--tg-text);
+            outline: none;
+            resize: vertical; /* Пользователь может сам тянуть за уголок */
+            min-height: 45px;
+            font-family: inherit;
+        }
+
+        .file-upload {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px;
+            background: var(--tg-secondary-bg);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            color: var(--tg-hint);
             cursor: pointer;
             border: 1px dashed #ccc;
+            font-weight: 500;
         }
+
+        /* Окошко предпросмотра фото */
+        #preview-container {
+            display: none;
+            width: 100%;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        #preview-img {
+            max-width: 100%;
+            max-height: 150px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
         button { 
             width: 100%; 
-            padding: 15px; 
-            background-color: #2ea6ff; /* Цвет Телеграма */
-            color: white; 
+            padding: 16px; 
+            background-color: var(--tg-button); 
+            color: var(--tg-button-text); 
             border: none; 
-            border-radius: 10px; 
+            border-radius: 14px; 
             font-size: 16px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            transition: 0.2s;
+            font-weight: 600; 
         }
-        button:active { transform: scale(0.98); }
     </style>
 </head>
 <body>
@@ -72,23 +118,26 @@
 
     <div class="container">
         <h3>📍 Сообщить о мусоре</h3>
-        <input type="text" id="desc" placeholder="Описание (пластик, бутылки...)">
         
-        <label for="photo" class="file-upload">
-            📷 Нажмите, чтобы добавить фото
+        <textarea id="desc" placeholder="Опишите ситуацию..."></textarea>
+        
+        <label for="photo" class="file-upload" id="file-label">
+            📸 <span id="file-text">Добавить фото</span>
         </label>
         <input type="file" id="photo" accept="image/*" style="display: none;">
 
-        <button onclick="sendReport()">ОТПРАВИТЬ ЗАЯВКУ</button>
+        <div id="preview-container">
+            <img id="preview-img" src="" alt="Превью">
+        </div>
+
+        <button id="submit-btn" onclick="sendReport()">ОТПРАВИТЬ ЗАЯВКУ</button>
     </div>
 
     <script>
-        // Инициализация Telegram
         let tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Карта
-        var map = L.map('map').setView([53.085, 70.28], 13);
+        var map = L.map('map', { zoomControl: false }).setView([53.085, 70.28], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         var marker;
@@ -99,47 +148,57 @@
             marker = L.marker(e.latlng).addTo(map);
             selectedLat = e.latlng.lat;
             selectedLng = e.latlng.lng;
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
         });
 
-        // Смена текста когда выбрали файл
-        document.getElementById('photo').onchange = function() {
-            document.querySelector('.file-upload').innerText = "✅ Фото выбрано!";
-            document.querySelector('.file-upload').style.background = "#e6fffa";
-            document.querySelector('.file-upload').style.borderColor = "#28a745";
+        // ЛОГИКА ПРЕДПРОСМОТРА ФОТО
+        const photoInput = document.getElementById('photo');
+        const previewImg = document.getElementById('preview-img');
+        const previewContainer = document.getElementById('preview-container');
+
+        photoInput.onchange = function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                    document.getElementById('file-text').innerText = "Фото выбрано ✅";
+                }
+                reader.readAsDataURL(file);
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            }
         };
 
         async function sendReport() {
             if (!selectedLat) {
-                tg.showAlert("Пожалуйста, поставьте точку на карте!");
+                tg.showAlert("Выберите место на карте!");
                 return;
             }
-            
-            let photoFile = document.getElementById("photo").files[0];
-            if (!photoFile) {
-                tg.showAlert("Пожалуйста, прикрепите фото!");
+            if (!photoInput.files[0]) {
+                tg.showAlert("Добавьте фото!");
                 return;
             }
 
+            let btn = document.getElementById('submit-btn');
             let formData = new FormData();
             formData.append("lat", selectedLat);
             formData.append("lon", selectedLng);
             formData.append("desc", document.getElementById("desc").value);
-            formData.append("photo", photoFile);
+            formData.append("photo", photoInput.files[0]);
 
-            // Кнопка меняет цвет на время загрузки
-            let btn = document.querySelector('button');
+            btn.disabled = true;
             btn.innerText = "⏳ Отправка...";
-            btn.style.background = "#ccc";
 
             try {
                 let response = await fetch("/submit", { method: "POST", body: formData });
                 let result = await response.json();
-                tg.showAlert(result.message); // Красивое уведомление Телеграм
-                window.location.reload(); // Перезагружаем страницу
+                tg.showAlert(result.message);
+                tg.close();
             } catch (e) {
-                alert("Ошибка: " + e);
+                tg.showAlert("Ошибка: " + e);
+                btn.disabled = false;
                 btn.innerText = "ОТПРАВИТЬ ЗАЯВКУ";
-                btn.style.background = "#2ea6ff";
             }
         }
     </script>
